@@ -132,3 +132,5 @@ if __name__ == "__main__":
 - make a bunch of projections and choose the one with the highest R2
 - display the R2
 '''
+
+# test
