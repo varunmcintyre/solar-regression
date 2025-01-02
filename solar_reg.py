@@ -51,17 +51,19 @@ def train_regression_model(df):
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
 
-    poly = PolynomialFeatures(degree=4)
-    X_train_poly = poly.fit_transform(X_train)
-    X_test_poly = poly.transform(X_test)
 
-    lr = LinearRegression()
-    lr.fit(X_train_poly, y_train)
+    r2_list = []
+    for i in range(10):
+        poly = PolynomialFeatures(degree=4)
+        X_train_poly = poly.fit_transform(X_train)
+        X_test_poly = poly.transform(X_test)
 
-    y_pred = lr.predict(X_test_poly)
+        lr = LinearRegression()
+        lr.fit(X_train_poly, y_train)
 
-    r2 = r2_score(y_test, y_pred)
-    print("R2:",round(r2, 3))
+        #y_pred = lr.predict(X_test_poly)
+
+        #r2 = r2_score(y_test, y_pred)
 
     return lr, poly
 
@@ -70,6 +72,7 @@ def make_projections(lr, poly):
     months = []
     years = []
 
+    # generate future months and years
     for i in range(7):
         for j in range(1,13):
             months.append(j)
@@ -93,24 +96,36 @@ def add_projections(df, X_proj, y_proj):
 
     return final_df
 
+def prep_all_to_plot():
+    source_dict = {"Solar":"SOETPUS", "Wind":"WYETPUS", "Coal":"CLETPUS"}
+    dfs_dict = {}
+    for source in source_dict:
+
+        df = pd.read_csv("MER_T07_02A.csv")
+        df = prep_data(df, source_dict[source])
+
+        lr, poly = train_regression_model(df)
+        X_proj, y_proj = make_projections(lr, poly)
+        final_df = add_projections(df, X_proj, y_proj)
+
+        dfs_dict[source] = final_df
+
+    return dfs_dict
+
 
 @app.callback(
     Output("reg_graph", "figure"),
     Input("source_choice", "value"),
 )
 def plot(source_choice):
-    df = pd.read_csv("MER_T07_02A.csv")
-
-    source_dict = {"Solar":"SOETPUS", "Wind":"WYETPUS", "Coal":"CLETPUS"}
-    df = prep_data(df, source_dict[source_choice])
-
-    lr, poly = train_regression_model(df)
-    X_proj, y_proj = make_projections(lr, poly)
-    final_df = add_projections(df, X_proj, y_proj)
+    
+    dfs_dict = prep_all_to_plot()
+    choice_df = dfs_dict[source_choice]
+    print(choice_df)
 
     reg_fig = go.Figure()
 
-    trace = go.Scatter(x=final_df["Date"], y=final_df["Value"], mode="lines")
+    trace = go.Scatter(x=choice_df["Date"], y=choice_df["Value"], mode="lines")
     reg_fig.add_traces(trace)
 
     reg_fig.update_layout(
@@ -132,5 +147,3 @@ if __name__ == "__main__":
 - make a bunch of projections and choose the one with the highest R2
 - display the R2
 '''
-
-# test
